@@ -387,8 +387,11 @@ export default class Editor extends Plugin {
       window.clearTimeout(this.saveTimeout)
     }
 
+    const manuallySave = await this.plugin.call('config', 'getAppParameter', 'manual-file-saving')
+
     this.saveTimeout = window.setTimeout(() => {
       this.triggerEvent('contentChanged', [currentFile, input])
+      if (manuallySave) return
       this.triggerEvent('requiringToSaveCurrentfile', [currentFile])
     }, 500)
   }

@@ -75,6 +75,15 @@ export default class TabProxy extends Plugin {
       }
     })
 
+    this.on('editor', 'contentChanged', (currentFile) => {
+      this.tabsApi.fileIsModifying(currentFile)      
+    })
+
+    this.on('fileManager', 'fileSaved', (currentFile) => {
+      dispatch({ type: 'REMOVE_MODIFIED_FILE', payload: currentFile })
+      this.tabsApi.fileIsSaved(currentFile)
+    })
+
     this.on('fileManager', 'currentFileChanged', (file) => {
       const workspace = this.fileManager.currentWorkspace()
 

@@ -34,6 +34,7 @@ export interface Tab {
   title: string
   tooltip: string
   show: boolean
+  isModified?: boolean
 }
 export interface TabsUIApi {
   activateTab: (name: string) => void
@@ -44,6 +45,7 @@ interface ITabsState {
   fileDecorations: fileDecoration[]
   currentExt: string
   name: string
+  modifiedFiles: { [key: string]: boolean }
 }
 interface ITabsAction {
   type: string
@@ -56,7 +58,8 @@ const initialTabsState: ITabsState = {
   selectedIndex: -1,
   fileDecorations: [],
   currentExt: '',
-  name: ''
+  name: '',
+  modifiedFiles: {}
 }
 
 const tabsReducer = (state: ITabsState, action: ITabsAction) => {
@@ -72,6 +75,17 @@ const tabsReducer = (state: ITabsState, action: ITabsAction) => {
     return {
       ...state,
       fileDecorations: action.payload as fileDecoration[]
+    }
+  case 'ADD_MODIFIED_FILE':
+    return {
+      ...state,
+      modifiedFiles: { ...state.modifiedFiles, [action.payload]: true }
+    }
+  case 'REMOVE_MODIFIED_FILE':
+    delete state.modifiedFiles[action.payload]
+    return {
+      ...state,
+      modifiedFiles: state.modifiedFiles
     }
   default:
     return state
@@ -107,10 +121,6 @@ export const TabsUI = (props: TabsUIProps) => {
       })
     }
   }, [tabsState.selectedIndex])
-
-  useEffect(() => {
-    // Removed pluginIsClosed listener as the event is no longer emitted
-  }, [])
 
   // Toggle the copilot in editor when clicked to update in status bar
   useEffect(() => {
@@ -160,7 +170,24 @@ export const TabsUI = (props: TabsUIProps) => {
           data-id={index === currentIndexRef.current ? 'tab-active' : ''}
           data-path={tab.name}
         >
-          {tab.icon ? <img className="my-1 me-1 iconImage" src={tab.icon} /> : <i className={classNameImg}></i>}
+          <div className="d-flex align-items-center position-relative">
+            {tab.icon ? <img className="my-1 me-1 iconImage" src={tab.icon} /> : <i className={classNameImg}></i>}
+            {tabsState.modifiedFiles[tab.name] && (
+              <span
+                className="position-absolute"
+                style={{
+                  top: '0px',
+                  right: '-2px',
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: '#007acc',
+                  border: '1px solid var(--secondary)'
+                }}
+                title="Modified"
+              ></span>
+            )}
+          </div>
           <span className={`title-tabs ${getFileDecorationClasses(tab)}`}>{tab.title}</span>
           {getFileDecorationIcons(tab)}
           <span
@@ -197,6 +224,14 @@ export const TabsUI = (props: TabsUIProps) => {
     dispatch({ type: 'SET_FILE_DECORATIONS', payload: fileStates })
   }
 
+  const fileIsModifying = (filePath: string) => {
+    dispatch({ type: 'ADD_MODIFIED_FILE', payload: filePath })
+  }
+
+   const fileIsSaved = (filePath: string[]) => {
+    dispatch({ type: 'REMOVE_MODIFIED_FILE', payload: filePath })
+  }
+
   const transformScroll = (event) => {
     if (!event.deltaY) {
       return
@@ -210,7 +245,9 @@ export const TabsUI = (props: TabsUIProps) => {
     props.onReady({
       activateTab,
       active,
-      setFileDecorations
+      setFileDecorations,
+      fileIsModifying,
+      fileIsSaved
     })
     return () => {
       if (tabsElement.current) tabsElement.current.removeEventListener('wheel', transformScroll)
